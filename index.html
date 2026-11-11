@@ -713,32 +713,31 @@ h1 {
 .mode-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .mode-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 32px;
   height: 32px;
-  padding: 0 8px 0 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-muted);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
   color: var(--text);
   font: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
   cursor: pointer;
 }
 
-.mode-toggle:hover {
-  border-color: var(--accent);
+.mode-toggle:hover .mode-icon {
+  opacity: 0.8;
 }
 
 .mode-toggle .mode-icon {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   flex: none;
 }
 
@@ -1009,6 +1008,18 @@ h1 {
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.itinerary-duration.is-live {
+  background: color-mix(in srgb, #16a34a 14%, transparent);
+  color: #0b7a45;
+}
+
+@media (prefers-color-scheme: dark) {
+  .itinerary-duration.is-live {
+    background: color-mix(in srgb, #4ade9f 18%, transparent);
+    color: #6ee7a8;
+  }
 }
 
 .itinerary-meta {
@@ -1407,19 +1418,17 @@ h1 {
   }
 
   .mode-buttons {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
+    gap: 2px;
   }
 
   .mode-toggle {
-    justify-content: flex-start;
-    min-width: 0;
+    width: 40px;
+    justify-content: center;
   }
 
   .mode-toggle .mode-icon {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
   }
 
   /* 16px prevents iOS from zooming the page when a field is focused. */
@@ -1784,44 +1793,48 @@ h1 {
                 class="mode-toggle"
                 data-mode="BUS"
                 aria-pressed="true"
+                aria-label="Bussi"
+                data-i18n-aria-label="modeBus"
                 title="Bussi"
                 data-i18n-title="modeBus"
               >
                 <svg class="mode-icon" aria-hidden="true"><use href="#icon_bus" /></svg>
-                <span data-i18n="modeBus">Bussi</span>
               </button>
               <button
                 type="button"
                 class="mode-toggle"
                 data-mode="TRAM"
                 aria-pressed="true"
+                aria-label="Raitiovaunu"
+                data-i18n-aria-label="modeTram"
                 title="Raitiovaunu"
                 data-i18n-title="modeTram"
               >
                 <svg class="mode-icon" aria-hidden="true"><use href="#icon_tram" /></svg>
-                <span data-i18n="modeTram">Raitiovaunu</span>
               </button>
               <button
                 type="button"
                 class="mode-toggle"
                 data-mode="RAIL"
                 aria-pressed="true"
+                aria-label="Lähijuna"
+                data-i18n-aria-label="modeRail"
                 title="Lähijuna"
                 data-i18n-title="modeRail"
               >
                 <svg class="mode-icon" aria-hidden="true"><use href="#icon_rail" /></svg>
-                <span data-i18n="modeRail">Lähijuna</span>
               </button>
               <button
                 type="button"
                 class="mode-toggle"
                 data-mode="SUBWAY"
                 aria-pressed="true"
+                aria-label="Metro"
+                data-i18n-aria-label="modeSubway"
                 title="Metro"
                 data-i18n-title="modeSubway"
               >
                 <svg class="mode-icon" aria-hidden="true"><use href="#icon_subway" /></svg>
-                <span data-i18n="modeSubway">Metro</span>
               </button>
             </div>
           </div>
@@ -2119,12 +2132,12 @@ const I18N = {
     optionsCount: (count) => `${count} ${count === 1 ? 'vaihtoehto' : 'vaihtoehtoa'}`,
     noModeMatch:
       'Valituilla kulkumuodoilla ei löytynyt reittejä. Ota toinen kulkumuoto käyttöön tai paina Etsi reitti.',
-    showEarlier: '← Näytä aiemmat lähdöt',
-    showLater: 'Näytä myöhemmät lähdöt →',
+    showEarlier: '← Näytä aiempia lähtöjä',
+    showLater: 'Näytä myöhempiä lähtöjä →',
     noEarlier: 'Ei aiempia lähtöjä',
     noLater: 'Ei myöhempiä lähtöjä',
-    earlierAria: 'Näytä aiemmat lähdöt',
-    laterAria: 'Näytä myöhemmät lähdöt',
+    earlierAria: 'Näytä aiempia lähtöjä',
+    laterAria: 'Näytä myöhempiä lähtöjä',
     atEnd: (verb) => `${verb} listan lopussa`,
     enterDestination: 'Anna määränpää.',
     findingLocations: 'Haetaan paikkoja…',
@@ -2517,11 +2530,30 @@ function normaliseRecentPlace(raw) {
   };
 }
 
+/**
+ * The list shows labels, so entries that would render identically are
+ * duplicates: repeated GPS fixes reverse-geocode to the same address with
+ * jittered coordinates, and picking a suggestion twice must not stack.
+ */
+function isSameRecentPlace(a, b) {
+  return (
+    String(a.label || '').trim().toLowerCase() ===
+    String(b.label || '').trim().toLowerCase()
+  );
+}
+
 function readRecentPlaces(scope) {
   try {
     const raw = JSON.parse(localStorage.getItem(RECENT_STORAGE_PREFIX + scope) || '[]');
     if (!Array.isArray(raw)) return [];
-    return raw.map(normaliseRecentPlace).filter(Boolean).slice(0, RECENT_PLACES_LIMIT);
+    return raw
+      .map(normaliseRecentPlace)
+      .filter(Boolean)
+      .reduce((places, place) => {
+        if (!places.some((item) => isSameRecentPlace(item, place))) places.push(place);
+        return places;
+      }, [])
+      .slice(0, RECENT_PLACES_LIMIT);
   } catch {
     return [];
   }
@@ -3349,10 +3381,9 @@ function createField({ root, input, list, getFocus, recentKey }) {
     if (!place) return;
     const entry = normaliseRecentPlace(recentPlaceForStorage(place));
     if (!entry) return;
-    const key = `${entry.label}|${entry.lat}|${entry.lon}`;
     recents = [
       entry,
-      ...recents.filter((item) => `${item.label}|${item.lat}|${item.lon}` !== key),
+      ...recents.filter((item) => !isSameRecentPlace(item, entry)),
     ].slice(0, RECENT_PLACES_LIMIT);
     writeRecentPlaces(recentKey, recents);
   }
@@ -3520,6 +3551,7 @@ function createField({ root, input, list, getFocus, recentKey }) {
       close();
       rememberPlace(value);
     },
+    showRecents,
     setValue(text, selection) {
       selected = selection && selection.label === text ? selection : null;
       input.value = text;
@@ -3579,11 +3611,11 @@ document.addEventListener('pointerdown', (event) => {
 // Rendering
 // ---------------------------------------------------------------------------
 
-function liveBadge(withLabel) {
+function liveBadge(withLabel, withDot = true) {
   const node = el('span', 'live');
   node.title = t('liveTitle');
   node.setAttribute('aria-label', t('liveAria'));
-  node.append(el('span', 'live-dot'));
+  if (withDot) node.append(el('span', 'live-dot'));
   if (withLabel) node.append(document.createTextNode(t('liveLabel')));
   return node;
 }
@@ -3719,12 +3751,14 @@ function renderItinerary(itinerary) {
     if (dayLabel) meta.append(document.createTextNode(dayLabel));
     if (hasLive) {
       if (dayLabel) meta.append(document.createTextNode(' '), el('span', 'meta-dot'));
-      meta.append(liveBadge(true));
+      meta.append(liveBadge(true, false));
     }
     head.append(meta);
   }
 
-  head.append(el('div', 'itinerary-duration', formatDuration(itinerary.duration)));
+  const duration = el('div', 'itinerary-duration', formatDuration(itinerary.duration));
+  if (hasLive) duration.classList.add('is-live');
+  head.append(duration);
   card.append(head);
 
   const steps = el('ol', 'steps');
@@ -4122,6 +4156,16 @@ if (initialTo) toField.setValue(initialTo, null);
 if (initialFrom && initialTo) {
   if (STANDALONE && !apiKey) pendingAutoRoute = true;
   else setTimeout(() => form.requestSubmit(), 0);
+}
+
+// Start typing in the destination field on the first load, so the keyboard
+// opens and recent destinations are one tap away. A shared link that already
+// names a destination, or the blocking API key dialog, both keep focus where
+// it is. The list is opened explicitly: a focus() this early does not always
+// dispatch a focus event.
+if (!keyDialog?.open && !toField.input.value.trim()) {
+  toField.input.focus();
+  toField.showRecents();
 }
 
     </script>
