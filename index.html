@@ -2006,6 +2006,7 @@ const I18N = {
     walk: 'Walk',
     walkToPrefix: 'to ',
     walkToDestination: 'to destination',
+    destinationGeoLabel: 'Destination',
     platform: (code) => ` (platform ${code})`,
     stopFallback: 'Stop',
     waitAtPrefix: (duration) => `Wait ${duration}`,
@@ -2122,6 +2123,7 @@ const I18N = {
     walk: 'Kävele',
     walkToPrefix: 'kohteeseen ',
     walkToDestination: 'määränpäähän',
+    destinationGeoLabel: 'Määränpää',
     platform: (code) => ` (laituri ${code})`,
     stopFallback: 'Pysäkki',
     waitAtPrefix: (duration) => `Odota ${duration}`,
@@ -3620,7 +3622,7 @@ function liveBadge(withLabel, withDot = true) {
   return node;
 }
 
-function locationNode(name, point) {
+function locationNode(name, point, geoLabel) {
   const label = String(name || '');
   const lat = Number(point?.lat);
   const lon = Number(point?.lon);
@@ -3629,7 +3631,8 @@ function locationNode(name, point) {
   }
   const link = document.createElement('a');
   link.className = 'location-link';
-  link.href = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(label)})`;
+  const title = String(geoLabel || label);
+  link.href = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(title)})`;
   link.textContent = label;
   return link;
 }
@@ -3639,7 +3642,9 @@ function renderWalkDetail(leg) {
   const target = leg.to?.name;
   const distance = Number(leg.distance) > 20 ? ` · ${formatDistance(leg.distance)}` : '';
   if (!target || target === 'Destination') {
-    fragment.append(document.createTextNode(t('walkToDestination')));
+    fragment.append(
+      locationNode(t('walkToDestination'), leg.to, t('destinationGeoLabel')),
+    );
   } else {
     fragment.append(document.createTextNode(t('walkToPrefix')), locationNode(target, leg.to));
   }
